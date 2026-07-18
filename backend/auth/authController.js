@@ -1,5 +1,10 @@
 const User = require("../models/User");
+const OTP = require("../models/OTP");
 const bcrypt = require("bcrypt");
+const generateOTP = require("../utils/generateOTP");
+const generateToken = require("../utils/generateTokens");
+const { sendOTPEmail } = require("../services/emailService");
+
 
 const registerUser = async (req, res) => {
   try {
@@ -33,10 +38,23 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
     });
 
+    await OTP.deleteMany({ email });
+
+    const otp = generateOTP();
+
+    await OTP.create({
+      email,
+      otp,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+    });
+
+
+    await sendOTPEmail(email, otp);
+
+
     res.status(201).json({
       success: true,
-      message: "User registered successfully",
-      user,
+      message: "Registration successful. Please verify your email using the OTP sent.",
     });
 
   } catch (error) {
@@ -49,6 +67,202 @@ const registerUser = async (req, res) => {
   }
 };
 
+// Verify OTP
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
+
+    const otpRecord = await OTP.findOne({ email, otp });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+    if (otpRecord.expiresAt < new Date()) {
+      await OTP.deleteMany({ email });
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired",
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.isVerified = true;
+    await user.save();
+    await OTP.deleteMany({ email });
+
+    res.status(200).json({
+      success: true,
+      message: "Email verified successfully",
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+//Resend OTP
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is already verified",
+      });
+    }
+
+    await OTP.deleteMany({ email });
+ 
+    const otp = generateOTP();
+    await OTP.create({email, otp, expiresAt: new Date(Date.now() + 10 * 60 * 1000)});
+
+    await sendOTPEmail(email, otp);
+    res.status(200).json({
+      success: true,
+      message: "OTP resent successfully. Please check your email.",
+    });
+  }catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+//Login User
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Email is not verified. Please verify your email first.",
+      });
+    }
+
+    const bcrypt = require("bcrypt");
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    const token = generateToken(user._id, user.role);
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: false, // Set to true in production with HTTPS
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+    });
+    } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+    //Get logged in user details
+    const getProfile = async (req, res) => {
+    try {
+
+        const userId = req.user.userId;
+
+        const user = await User.findById(userId).select("-password");
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            user,
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
+    }
+};
 module.exports = {
   registerUser,
+  verifyOTP,
+  resendOTP,
+  loginUser,
+  getProfile,
 };
