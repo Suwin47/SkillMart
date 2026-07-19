@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 .env
 dist
+config/firebase-service-account.json
 dist-ssr
 *.local
 

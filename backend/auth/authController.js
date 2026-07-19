@@ -4,6 +4,7 @@ const bcrypt = require("bcrypt");
 const generateOTP = require("../utils/generateOTP");
 const generateToken = require("../utils/generateTokens");
 const { sendOTPEmail } = require("../services/emailService");
+const firebase = require("../config/firebase");
 
 
 const registerUser = async (req, res) => {
@@ -259,10 +260,75 @@ const loginUser = async (req, res) => {
         });
     }
 };
+
+//Google login
+const googleLogin = async (req, res) => {
+  try {
+  const { idToken } = req.body;
+
+  if (!idToken) {
+    return res.status(400).json({
+      success: false,
+      message: "ID Token is required",
+    });
+  }
+
+  const decodedToken = await firebase.auth.verifyIdToken(idToken);
+
+  
+  let user = await User.findOne({
+    email: decodedToken.email,
+  });
+
+  
+  if (!user) {
+    user = await User.create({
+      fullName: decodedToken.name,
+      email: decodedToken.email,
+      password: null,
+      googleId: decodedToken.uid,
+      profileImage: decodedToken.picture,
+      authProvider: "google",
+      isVerified: true,
+    });
+  }
+
+  
+  const token = generateToken(user._id, user.role);
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: false, // true after deployment (HTTPS)
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Google Login Successful",
+    user: {
+      id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profileImage: user.profileImage,
+      role: user.role,
+    },
+  });
+
+} catch (error) {
+  console.error(error);
+
+  res.status(500).json({
+    success: false,
+    message: "Internal Server Error",
+  });
+}
+};
 module.exports = {
   registerUser,
   verifyOTP,
   resendOTP,
   loginUser,
   getProfile,
+  googleLogin,
 };
