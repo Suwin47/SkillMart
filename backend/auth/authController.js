@@ -5,6 +5,8 @@ const generateOTP = require("../utils/generateOTP");
 const generateToken = require("../utils/generateTokens");
 const { sendOTPEmail } = require("../services/emailService");
 const firebase = require("../config/firebase");
+const cloudinary = require("../config/cloudinary");
+const fs = require("fs-extra");
 
 
 const registerUser = async (req, res) => {
@@ -324,11 +326,79 @@ const googleLogin = async (req, res) => {
   });
 }
 };
+
+// Upload Profile Image
+const uploadProfileImage = async (req, res) => {
+  try {
+    // Check if file exists
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload an image",
+      });
+    }
+
+    // Upload image to Cloudinary
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "SkillMart/ProfileImages",
+    });
+
+    // Delete local image
+    await fs.remove(req.file.path);
+
+    // Update user profile image
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.userId,
+      {
+        profileImage: result.secure_url,
+      },
+      {
+        new: true,
+      }
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      message: "Profile image uploaded successfully",
+      profileImage: result.secure_url,
+      user: updatedUser,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    // Remove local file even if upload fails
+    if (req.file) {
+      await fs.remove(req.file.path).catch(() => {});
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+// Logout User
+const logoutUser = (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Logged out successfully",
+  });
+};
 module.exports = {
   registerUser,
   verifyOTP,
   resendOTP,
   loginUser,
+  logoutUser,
   getProfile,
   googleLogin,
+  uploadProfileImage,
 };
