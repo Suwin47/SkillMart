@@ -11,6 +11,7 @@ const {
   getSingleOrder,
   createRazorpayOrder,
   verifyPayment,
+  checkPurchase,
 } = require("../controllers/orderController");
 
 // Buyer Routes
@@ -33,5 +34,12 @@ router.post("/verify", protect, verifyPayment);
 
 // Single Order
 router.get("/:id", protect, getSingleOrder);
+
+//Check Purchase
+router.get(
+  "/check-purchase/:serviceId",
+  protect,
+  checkPurchase
+);
 
 module.exports = router;

@@ -11,15 +11,15 @@ const getSellerDashboard = async (req, res) => {
     });
 
     // Total Orders
-    const totalOrders = await Order.countDocuments({
-      seller: sellerId,
-    });
+     const totalOrders = await Order.countDocuments({
+  seller: sellerId,
+});
 
     // Revenue
     const revenueData = await Order.aggregate([
       {
         $match: {
-          seller: req.user.userId,
+          seller: sellerId,
           paymentStatus: "Paid",
         },
       },
@@ -34,32 +34,56 @@ const getSellerDashboard = async (req, res) => {
     ]);
 
     const totalRevenue =
-      revenueData.length > 0 ? revenueData[0].totalRevenue : 0;
+      revenueData.length > 0
+        ? revenueData[0].totalRevenue
+        : 0;
 
+    // Average Order Value
     const averageOrderValue =
       totalOrders > 0
         ? Math.round(totalRevenue / totalOrders)
         : 0;
 
+    // Paid Orders
+    const paidOrders = await Order.countDocuments({
+      seller: sellerId,
+      paymentStatus: "Paid",
+    });
+
+    // Pending Orders
+    const pendingOrders = await Order.countDocuments({
+      seller: sellerId,
+      paymentStatus: "Pending",
+    });
+
     // Recent Orders
     const recentOrders = await Order.find({
       seller: sellerId,
     })
-      .populate("buyer", "fullName email")
-      .populate("service", "title")
+      .populate("buyer", "fullName email profileImage")
+      .populate(
+        "service",
+        "title thumbnail category price"
+      )
       .sort({ createdAt: -1 })
       .limit(5);
 
     res.status(200).json({
       success: true,
+
       stats: {
-        totalProducts,
-        totalOrders,
-        totalRevenue,
-        averageOrderValue,
-      },
+  totalProducts,
+  totalOrders,
+  totalRevenue,
+  averageOrderValue,
+
+  paidOrders,
+  pendingOrders,
+},
+
       recentOrders,
     });
+
   } catch (err) {
     console.error(err);
 

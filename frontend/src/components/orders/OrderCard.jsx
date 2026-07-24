@@ -1,7 +1,55 @@
-import { Calendar, Download } from "lucide-react";
+import { Calendar, Download, FileText } from "lucide-react";
+import api from "../../services/api";
 
 function OrderCard({ order }) {
   const product = order.service;
+
+  const handleDownloadProduct = async () => {
+  try {
+    const res = await api.get(
+  `/orders/check-purchase/${product._id}`
+);
+
+setPurchased(res.data.purchased);
+
+    window.open(res.data.downloadUrl, "_blank");
+  } catch (err) {
+    alert(
+      err.response?.data?.message ||
+      "Unable to download product."
+    );
+  }
+};
+
+const handleInvoice = async () => {
+  try {
+    const response = await api.get(`/invoice/${order._id}`, {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(
+      new Blob([response.data])
+    );
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `invoice-${order._id}.pdf`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error(err);
+
+    alert("Unable to download invoice.");
+  }
+};
 
   return (
     <div className="flex items-center gap-6 rounded-2xl bg-white p-6 shadow">
@@ -57,12 +105,25 @@ function OrderCard({ order }) {
           ₹{order.amount}
         </h3>
 
-        <button
-          className="mt-5 flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-white hover:bg-blue-700"
-        >
-          <Download size={18} />
-          Download
-        </button>
+       <div className="mt-5 flex flex-col gap-3">
+
+  <button
+    onClick={handleDownloadProduct}
+    className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-white transition hover:bg-blue-700"
+  >
+    <Download size={18} />
+    Download Product
+  </button>
+
+  <button
+    onClick={handleInvoice}
+    className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-white transition hover:bg-slate-800"
+  >
+    <FileText size={18} />
+    Download Invoice
+  </button>
+
+</div>
 
       </div>
 

@@ -2,43 +2,94 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Create uploads folder if it doesn't exist
-if (!fs.existsSync("uploads")) {
-  fs.mkdirSync("uploads");
+// Create folders if they don't exist
+const thumbnailDir = "uploads/thumbnails";
+const productDir = "uploads/products";
+
+if (!fs.existsSync(thumbnailDir)) {
+  fs.mkdirSync(thumbnailDir, { recursive: true });
+}
+
+if (!fs.existsSync(productDir)) {
+  fs.mkdirSync(productDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    if (file.fieldname === "thumbnail") {
+      cb(null, thumbnailDir);
+    } else if (file.fieldname === "productFile") {
+      cb(null, productDir);
+    } else {
+      cb(new Error("Invalid upload field"));
+    }
   },
 
   filename: (req, file, cb) => {
     const uniqueName =
-      Date.now() + "-" + Math.round(Math.random() * 1e9);
+      Date.now() +
+      "-" +
+      Math.round(Math.random() * 1e9) +
+      path.extname(file.originalname);
 
-    cb(null, uniqueName + path.extname(file.originalname));
+    cb(null, uniqueName);
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
-  const extension = path.extname(file.originalname).toLowerCase();
+  // Thumbnail
+  if (file.fieldname === "thumbnail") {
+    const allowedImages = [".jpg", ".jpeg", ".png", ".webp"];
 
-  if (
-    file.mimetype.startsWith("image/") ||
-    allowedExtensions.includes(extension)
-  ) {
-    cb(null, true);
-  } else {
-    cb(new Error("Only JPG, JPEG, PNG and WEBP images are allowed."));
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    if (
+      file.mimetype.startsWith("image/") &&
+      allowedImages.includes(ext)
+    ) {
+      return cb(null, true);
+    }
+
+    return cb(
+      new Error("Thumbnail must be JPG, JPEG, PNG or WEBP.")
+    );
   }
+
+  // Product File
+  if (file.fieldname === "productFile") {
+    const allowedFiles = [
+      ".zip",
+      ".rar",
+      ".pdf",
+      ".fig",
+      ".apk",
+      ".sql",
+      ".docx",
+      ".pptx",
+      ".xlsx",
+    ];
+
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    if (allowedFiles.includes(ext)) {
+      return cb(null, true);
+    }
+
+    return cb(
+      new Error(
+        "Only ZIP, RAR, PDF, FIG, APK, SQL, DOCX, PPTX and XLSX files are allowed."
+      )
+    );
+  }
+
+  cb(new Error("Invalid upload field"));
 };
 
 const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 200 * 1024 * 1024, // 200 MB
   },
 });
 

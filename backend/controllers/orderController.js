@@ -1,5 +1,6 @@
 const Order = require("../models/Order");
 const Service = require("../models/Service");
+const Notification = require("../models/Notification");
 const crypto = require("crypto");
 const razorpay = require("../config/razorpay");
 
@@ -32,7 +33,33 @@ const createOrder = async (req, res) => {
         message: "You cannot purchase your own product.",
       });
     }
+// Check if user already purchased
+const existingOrder = await Order.findOne({
+  buyer: req.user.userId,
+  service: service._id,
+  paymentStatus: "Paid",
+});
 
+if (existingOrder) {
+  return res.status(400).json({
+    success: false,
+    message: "You already purchased this product.",
+  });
+}
+
+// Check if there's already a pending order
+const existingPending = await Order.findOne({
+  buyer: req.user.userId,
+  service: service._id,
+  paymentStatus: "Pending",
+});
+
+if (existingPending) {
+  return res.status(200).json({
+    success: true,
+    order: existingPending,
+  });
+}
     const order = await Order.create({
       buyer: req.user.userId,
       seller: service.seller,
@@ -186,10 +213,10 @@ const createRazorpayOrder = async (req, res) => {
   }
 };
 
-//Verify Razorpay Payment
+// Verify Razorpay Payment
 const verifyPayment = async (req, res) => {
+  console.log("Payment verification started");
   try {
-
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -214,6 +241,7 @@ const verifyPayment = async (req, res) => {
     const order = await Order.findOne({
       razorpayOrderId: razorpay_order_id,
     });
+    
 
     if (!order) {
       return res.status(404).json({
@@ -221,13 +249,38 @@ const verifyPayment = async (req, res) => {
         message: "Order not found",
       });
     }
-
+if (order.paymentStatus !== "Paid") {
     order.paymentStatus = "Paid";
     order.orderStatus = "Completed";
     order.razorpayPaymentId = razorpay_payment_id;
     order.razorpaySignature = razorpay_signature;
 
     await order.save();
+  
+    // Increase total sales
+    await Service.findByIdAndUpdate(order.service, {
+      $inc: { totalSales: 1 },
+    });
+    }
+  
+
+    // Seller Notification
+    await Notification.create({
+      user: order.seller,
+      title: "New Order Received",
+      message: `You received a payment of ₹${order.amount}.`,
+      type: "order",
+    });
+    
+
+    // Buyer Notification
+    await Notification.create({
+      user: order.buyer,
+      title: "Payment Successful",
+      message: "Your payment was successful. Your product is now available.",
+      type: "payment",
+    });
+    
 
     res.status(200).json({
       success: true,
@@ -243,11 +296,38 @@ const verifyPayment = async (req, res) => {
     });
   }
 };
+
+//Check Purchase
+const checkPurchase = async (req, res) => {
+  try {
+    const { serviceId } = req.params;
+
+    const order = await Order.findOne({
+      buyer: req.user.userId,
+      service: serviceId,
+      paymentStatus: "Paid",
+    });
+
+    res.json({
+      success: true,
+      purchased: !!order,
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      purchased: false,
+    });
+  }
+};
 module.exports = {
   createOrder,
   getMyOrders,
   getSellerOrders,
   getSingleOrder,
+  checkPurchase,
   createRazorpayOrder,
   verifyPayment,
 };

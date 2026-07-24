@@ -1,11 +1,34 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate,useSearchParams,} from "react-router-dom";
+import { ShieldCheck } from "lucide-react";
+import toast from "react-hot-toast";
 
 import Button from "../common/Button";
+import api from "../../services/api";
 
 function OtpVerificationForm() {
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const navigate = useNavigate();
+
+  const [searchParams] = useSearchParams();
+
+  const email = searchParams.get("email");
+
+  const maskedEmail = email
+    ? email.replace(/(.{2}).+(@.+)/, "$1******$2")
+    : "";
+
+  const [otp, setOtp] = useState([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
+
   const [timer, setTimer] = useState(30);
+
+  const [loading, setLoading] = useState(false);
 
   const inputRefs = useRef([]);
 
@@ -23,12 +46,13 @@ function OtpVerificationForm() {
     if (!/^\d?$/.test(value)) return;
 
     const updatedOtp = [...otp];
+
     updatedOtp[index] = value;
 
     setOtp(updatedOtp);
 
     if (value && index < 5) {
-      inputRefs.current[index + 1].focus();
+      inputRefs.current[index + 1]?.focus();
     }
   };
 
@@ -38,7 +62,7 @@ function OtpVerificationForm() {
       otp[index] === "" &&
       index > 0
     ) {
-      inputRefs.current[index - 1].focus();
+      inputRefs.current[index - 1]?.focus();
     }
   };
 
@@ -54,105 +78,246 @@ function OtpVerificationForm() {
 
     const arr = paste.split("");
 
-    while (arr.length < 6) arr.push("");
+    while (arr.length < 6) {
+      arr.push("");
+    }
 
     setOtp(arr);
 
     inputRefs.current[
       Math.min(paste.length, 5)
-    ].focus();
+    ]?.focus();
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const finalOtp = otp.join("");
 
-    console.log(finalOtp);
+    if (finalOtp.length !== 6) {
+      return toast.error("Please enter the complete OTP.");
+    }
+    const loadingToast = toast.loading(
+    "Verifying OTP..."
+  );
 
-    // API Integration Next
+    try {
+      setLoading(true);
+
+      const res = await api.post(
+        "/auth/verify-otp",
+        {
+          email,
+          otp: finalOtp,
+        }
+      );
+
+          toast.success(res.data.message, {
+      id: loadingToast,
+    });
+
+
+      navigate("/login");
+
+    } catch (err) {
+      console.error(err);
+
+     toast.error(
+      err.response?.data?.message ||
+        "OTP verification failed.",
+      {
+        id: loadingToast,
+      }
+    );
+
+    } finally {
+      setLoading(false);
+    }
   };
+   const resendOTP = async () => {
+  const loadingToast = toast.loading(
+    "Sending OTP..."
+  );
 
-  const resendOTP = () => {
+  try {
+
+    await api.post("/auth/resend-otp", {
+      email,
+    });
+
+    toast.success(
+      "OTP sent successfully.",
+      {
+        id: loadingToast,
+      }
+    );
+
+    setOtp(["", "", "", "", "", ""]);
+
     setTimer(30);
 
-    console.log("Resend OTP");
-  };
+    inputRefs.current[0]?.focus();
+
+  } catch (err) {
+
+    console.error(err);
+
+    toast.error(
+      err.response?.data?.message ||
+        "Unable to resend OTP.",
+      {
+        id: loadingToast,
+      }
+    );
+
+  }
+};
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-8"
-    >
-      <div className="flex justify-center gap-3">
+    <div className="space-y-8">
 
-        {otp.map((digit, index) => (
-          <input
-            key={index}
-            ref={(el) => (inputRefs.current[index] = el)}
-            value={digit}
-            onPaste={handlePaste}
-            onChange={(e) =>
-              handleChange(e.target.value, index)
-            }
-            onKeyDown={(e) =>
-              handleKeyDown(e, index)
-            }
-            maxLength={1}
-            className="
-              w-14
-              h-14
-              rounded-xl
-              border
-              border-slate-300
-              text-center
-              text-xl
-              font-bold
-              outline-none
-              focus:border-blue-600
-              focus:ring-2
-              focus:ring-blue-200
-            "
-          />
-        ))}
-
-      </div>
-
-      <Button type="submit">
-        Verify OTP
-      </Button>
+      {/* Header */}
 
       <div className="text-center">
 
-        {timer > 0 ? (
-          <p className="text-gray-500 text-sm">
-            Resend OTP in {timer}s
-          </p>
-        ) : (
-          <button
-            type="button"
-            onClick={resendOTP}
-            className="text-blue-600 hover:underline"
-          >
-            Resend OTP
-          </button>
-        )}
+        <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-blue-100">
+
+          <ShieldCheck
+            size={48}
+            className="text-blue-600"
+          />
+
+        </div>
+
+        <h2 className="text-3xl font-bold text-slate-800">
+          Verify Your Email
+        </h2>
+
+        <p className="mt-3 text-slate-500">
+          Enter the 6-digit verification code sent to
+        </p>
+
+        <p className="mt-2 font-semibold text-blue-600">
+          {maskedEmail}
+        </p>
 
       </div>
 
-      <p className="text-center text-sm text-gray-600">
+      {/* OTP Form */}
 
-        Wrong email?{" "}
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-8"
+      >
 
-        <Link
-          to="/register"
-          className="text-blue-600 font-semibold hover:underline"
-        >
-          Register Again
-        </Link>
+        {/* OTP Inputs */}
 
-      </p>
-    </form>
+        <div className="flex justify-center gap-3">
+
+          {otp.map((digit, index) => (
+
+            <input
+              key={index}
+              ref={(el) => (inputRefs.current[index] = el)}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              onChange={(e) =>
+                handleChange(e.target.value, index)
+              }
+              onKeyDown={(e) =>
+                handleKeyDown(e, index)
+              }
+              onPaste={handlePaste}
+              className="
+                h-16
+                w-16
+                rounded-2xl
+                border-2
+                border-slate-300
+                bg-slate-50
+                text-center
+                text-2xl
+                font-bold
+                transition-all
+                duration-300
+                outline-none
+                focus:border-blue-600
+                focus:bg-white
+                focus:ring-4
+                focus:ring-blue-100
+              "
+            />
+
+          ))}
+
+        </div>
+
+        {/* Verify Button */}
+
+        <Button
+  type="submit"
+  disabled={loading || otp.join("").length !== 6}
+  className="w-full rounded-2xl py-4 text-lg"
+>
+         {loading ? (
+  <div className="flex items-center justify-center gap-2">
+    <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+    Verifying...
+  </div>
+) : (
+  "Verify OTP"
+)}
+        </Button>
+
+        {/* Timer */}
+
+        <div className="rounded-2xl bg-slate-50 p-4 text-center">
+
+          {timer > 0 ? (
+
+            <p className="text-slate-500">
+              Resend OTP in
+
+              <span className="ml-2 font-bold text-blue-600">
+                {timer}s
+              </span>
+
+            </p>
+
+          ) : (
+
+            <button
+              type="button"
+              onClick={resendOTP}
+              className="font-semibold text-blue-600 hover:underline"
+            >
+              Resend OTP
+            </button>
+
+          )}
+
+        </div>
+
+        {/* Register Again */}
+
+        <p className="text-center text-sm text-slate-500">
+
+          Wrong email?
+
+          <Link
+            to="/register"
+            className="ml-2 font-semibold text-blue-600 hover:underline"
+          >
+            Register Again
+          </Link>
+
+        </p>
+
+      </form>
+
+    </div>
   );
 }
 

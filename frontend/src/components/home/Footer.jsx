@@ -12,7 +12,7 @@ function Footer() {
   return (
     <footer className="bg-slate-950 text-slate-300">
 
-      <div className="max-w-7xl mx-auto px-6 py-20">
+      <div className="mx-auto max-w-7xl px-6 py-20">
 
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
 
@@ -60,28 +60,28 @@ function Footer() {
 
               <Link
                 to="/products"
-                className="hover:text-white transition"
+                className="transition duration-300 hover:translate-x-1 hover:text-white"
               >
                 Products
               </Link>
 
               <Link
                 to="/categories"
-                className="hover:text-white transition"
+                className="transition duration-300 hover:translate-x-1 hover:text-white"
               >
                 Categories
               </Link>
 
               <Link
                 to="/seller-request"
-                className="hover:text-white transition"
+                className="transition duration-300 hover:translate-x-1 hover:text-white"
               >
                 Become Seller
               </Link>
 
               <Link
                 to="/login"
-                className="hover:text-white transition"
+                className="transition duration-300 hover:translate-x-1 hover:text-white"
               >
                 Login
               </Link>
@@ -102,28 +102,28 @@ function Footer() {
 
               <Link
                 to="/faq"
-                className="hover:text-white transition"
+                className="transition duration-300 hover:translate-x-1 hover:text-white"
               >
                 FAQ
               </Link>
 
               <Link
                 to="/privacy"
-                className="hover:text-white transition"
+                className="transition duration-300 hover:translate-x-1 hover:text-white"
               >
                 Privacy Policy
               </Link>
 
               <Link
                 to="/terms"
-                className="hover:text-white transition"
+                className="transition duration-300 hover:translate-x-1 hover:text-white"
               >
                 Terms & Conditions
               </Link>
 
               <Link
                 to="/contact"
-                className="hover:text-white transition"
+                className="transition duration-300 hover:translate-x-1 hover:text-white"
               >
                 Contact Us
               </Link>
@@ -146,7 +146,12 @@ function Footer() {
 
                 <Mail size={18} />
 
-                <span>support@skillmart.com</span>
+                <a
+                  href="mailto:support@skillmart.com"
+                  className="transition hover:text-white"
+                >
+                  support@skillmart.com
+                </a>
 
               </div>
 
@@ -154,7 +159,12 @@ function Footer() {
 
                 <Phone size={18} />
 
-                <span>+91 98765 43210</span>
+                <a
+                  href="tel:+919876543210"
+                  className="transition hover:text-white"
+                >
+                  +91 98765 43210
+                </a>
 
               </div>
 
@@ -168,34 +178,42 @@ function Footer() {
 
             </div>
 
-            {/* Social Icons */}
+            {/* Social */}
 
             <div className="mt-8 flex gap-4">
 
               <a
-                href="#"
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-white transition hover:bg-blue-600"
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-white transition duration-300 hover:-translate-y-1 hover:bg-blue-600"
               >
                 <FaFacebookF size={18} />
               </a>
 
               <a
-                href="#"
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-white transition hover:bg-pink-600"
+                href="https://instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-white transition duration-300 hover:-translate-y-1 hover:bg-pink-600"
               >
                 <FaInstagram size={18} />
               </a>
 
               <a
-                href="#"
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-white transition hover:bg-sky-600"
+                href="https://www.linkedin.com/in/suvin-s-98618a315/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-white transition duration-300 hover:-translate-y-1 hover:bg-sky-600"
               >
                 <FaLinkedinIn size={18} />
               </a>
 
               <a
-                href="#"
-                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-white transition hover:bg-gray-700"
+                href="https://github.com/Suwin47"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-white transition duration-300 hover:-translate-y-1 hover:bg-gray-700"
               >
                 <FaGithub size={18} />
               </a>
@@ -208,14 +226,14 @@ function Footer() {
 
         {/* Bottom */}
 
-        <div className="mt-16 border-t border-slate-800 pt-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="mt-16 flex flex-col gap-4 border-t border-slate-800 pt-8 text-center md:flex-row md:items-center md:justify-between">
 
           <p className="text-sm text-slate-500">
-            © {new Date().getFullYear()} SkillMart. All rights reserved.
+            © {new Date().getFullYear()} SkillMart. All Rights Reserved.
           </p>
 
           <p className="text-sm text-slate-500">
-            Built with ❤️ using React, Node.js & MongoDB
+            Built with React • Node.js • Express • MongoDB
           </p>
 
         </div>

@@ -2,61 +2,86 @@ const Service = require("../models/Service");
 const cloudinary = require("../config/cloudinary");
 const fs = require("fs-extra");
 
+// ================= CREATE SERVICE =================
 const createService = async (req, res) => {
-   
   try {
     const {
       title,
       description,
       category,
       price,
-      downloadUrl,
     } = req.body;
 
-    // Validate required fields
-    if (!title || !description || !category || !price || !downloadUrl) {
+    if (
+      !title ||
+      !description ||
+      !category ||
+      !price
+    ) {
       return res.status(400).json({
         success: false,
         message: "All fields are required.",
       });
     }
 
-    if (!req.file) {
+    if (!req.files?.thumbnail?.[0]) {
       return res.status(400).json({
         success: false,
-        message: "Thumbnail image is required.",
+        message: "Thumbnail is required.",
+      });
+    }
+
+    if (!req.files?.productFile?.[0]) {
+      return res.status(400).json({
+        success: false,
+        message: "Product file is required.",
       });
     }
 
     // Upload thumbnail to Cloudinary
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "SkillMart/Services",
-    });
+    const thumbnailUpload = await cloudinary.uploader.upload(
+      req.files.thumbnail[0].path,
+      {
+        folder: "SkillMart/Services",
+      }
+    );
 
-    // Delete local temp file
-    await fs.remove(req.file.path);
+    // Remove temporary thumbnail
+    await fs.remove(req.files.thumbnail[0].path);
 
-    // Create service
+    // Product file stored locally
+    const productFile = req.files.productFile[0];
+
+    const downloadUrl =
+      `${req.protocol}://${req.get("host")}/uploads/products/${productFile.filename}`;
+
     const service = await Service.create({
       seller: req.user.userId,
+
       title,
       description,
       category,
       price,
-      thumbnail: result.secure_url,
+
+      thumbnail: thumbnailUpload.secure_url,
+
       downloadUrl,
+
+      fileName: productFile.originalname,
+
+      fileSize: productFile.size,
     });
 
     res.status(201).json({
       success: true,
-      message: "Service created successfully",
+      message: "Service created successfully.",
       service,
     });
 
   } catch (error) {
 
-    if (req.file) {
-      await fs.remove(req.file.path).catch(() => {});
+    if (req.files?.thumbnail?.[0]) {
+      await fs.remove(req.files.thumbnail[0].path).catch(() => {});
     }
 
     console.error(error);
@@ -68,42 +93,97 @@ const createService = async (req, res) => {
   }
 };
 
-
-// Get All Services
+// ================= GET ALL SERVICES =================
 const getAllServices = async (req, res) => {
   try {
-    const services = await Service.find()
-      .populate("seller", "fullName profileImage")
-      .sort({ createdAt: -1 });
+    const {
+      search = "",
+      category,
+      minPrice,
+      maxPrice,
+      sort = "latest",
+      page = 1,
+      limit = 9,
+    } = req.query;
+
+    const query = {};
+
+    if (search) {
+      query.title = {
+        $regex: search,
+        $options: "i",
+      };
+    }
+
+    if (category && category !== "All") {
+      query.category = category;
+    }
+
+    if (minPrice || maxPrice) {
+      query.price = {};
+
+      if (minPrice) query.price.$gte = Number(minPrice);
+
+      if (maxPrice) query.price.$lte = Number(maxPrice);
+    }
+
+    let sortOption = { createdAt: -1 };
+
+    if (sort === "priceLow")
+      sortOption = { price: 1 };
+
+    if (sort === "priceHigh")
+      sortOption = { price: -1 };
+
+    if (sort === "rating")
+      sortOption = { rating: -1 };
+
+    const total = await Service.countDocuments(query);
+
+    const services = await Service.find(query)
+      .populate(
+        "seller",
+        "fullName profileImage"
+      )
+      .sort(sortOption)
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
 
     res.status(200).json({
       success: true,
-      total: services.length,
       services,
+      totalPages: Math.ceil(total / limit),
+      currentPage: Number(page),
+      total,
     });
 
   } catch (error) {
+
     console.error(error);
 
     res.status(500).json({
       success: false,
       message: "Internal Server Error",
     });
+
   }
 };
 
-// Get Logged-in Seller Products
+// ================= GET MY PRODUCTS =================
 const getMyProducts = async (req, res) => {
   try {
     const products = await Service.find({
       seller: req.user.userId,
-    }).sort({ createdAt: -1 });
+    }).sort({
+      createdAt: -1,
+    });
 
     res.status(200).json({
       success: true,
       total: products.length,
       products,
     });
+
   } catch (error) {
     console.error(error);
 
@@ -114,14 +194,16 @@ const getMyProducts = async (req, res) => {
   }
 };
 
-
-// Get Single Service
+// ================= GET SINGLE SERVICE =================
 const getSingleService = async (req, res) => {
   try {
     const { id } = req.params;
 
     const service = await Service.findById(id)
-      .populate("seller", "fullName profileImage");
+      .populate(
+        "seller",
+        "fullName profileImage"
+      );
 
     if (!service) {
       return res.status(404).json({
@@ -145,7 +227,45 @@ const getSingleService = async (req, res) => {
   }
 };
 
-// Update Service
+// ================= GET RELATED SERVICES =================
+const getRelatedProducts = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Current product
+    const currentProduct = await Service.findById(id);
+
+    if (!currentProduct) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // Same category, excluding current product
+    const relatedProducts = await Service.find({
+      category: currentProduct.category,
+      _id: { $ne: id },
+    })
+      .populate("seller", "fullName profileImage")
+      .limit(4);
+
+    res.status(200).json({
+      success: true,
+      products: relatedProducts,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+// ================= UPDATE SERVICE =================
 const updateService = async (req, res) => {
   try {
     const { id } = req.params;
@@ -159,42 +279,63 @@ const updateService = async (req, res) => {
       });
     }
 
-    // Only the owner can update
-    if (service.seller.toString() !== req.user.userId) {
+    if (
+      service.seller.toString() !==
+      req.user.userId
+    ) {
       return res.status(403).json({
         success: false,
-        message: "You are not authorized to update this service.",
+        message:
+          "You are not authorized to update this service.",
       });
     }
 
-    // Update thumbnail if a new one is uploaded
     if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: "SkillMart/Services",
-      });
+      const result =
+        await cloudinary.uploader.upload(
+          req.file.path,
+          {
+            folder: "SkillMart/Services",
+          }
+        );
 
       await fs.remove(req.file.path);
 
-      service.thumbnail = result.secure_url;
+      service.thumbnail =
+        result.secure_url;
     }
 
-    // Update other fields
-    service.title = req.body.title || service.title;
-    service.description = req.body.description || service.description;
-    service.category = req.body.category || service.category;
-    service.price = req.body.price || service.price;
-    service.downloadUrl = req.body.downloadUrl || service.downloadUrl;
+    service.title =
+      req.body.title || service.title;
 
-    // Boolean field needs special handling
-    if (req.body.inStock !== undefined) {
-      service.inStock = req.body.inStock;
+    service.description =
+      req.body.description ||
+      service.description;
+
+    service.category =
+      req.body.category ||
+      service.category;
+
+    service.price =
+      req.body.price || service.price;
+
+    service.downloadUrl =
+      req.body.downloadUrl ||
+      service.downloadUrl;
+
+    if (
+      req.body.inStock !== undefined
+    ) {
+      service.inStock =
+        req.body.inStock;
     }
 
     await service.save();
 
     res.status(200).json({
       success: true,
-      message: "Service updated successfully",
+      message:
+        "Service updated successfully",
       service,
     });
 
@@ -212,12 +353,13 @@ const updateService = async (req, res) => {
   }
 };
 
-// Delete Service
+// ================= DELETE SERVICE =================
 const deleteService = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const service = await Service.findById(id);
+    const service =
+      await Service.findById(id);
 
     if (!service) {
       return res.status(404).json({
@@ -226,17 +368,20 @@ const deleteService = async (req, res) => {
       });
     }
 
-    // Check ownership
-    if (service.seller.toString() !== req.user.userId) {
+    if (
+      service.seller.toString() !==
+      req.user.userId
+    ) {
       return res.status(403).json({
         success: false,
-        message: "You are not authorized to delete this service.",
+        message:
+          "You are not authorized to delete this service.",
       });
     }
 
-    // Delete thumbnail from Cloudinary
     try {
-      const imageUrl = service.thumbnail;
+      const imageUrl =
+        service.thumbnail;
 
       const publicId = imageUrl
         .split("/")
@@ -244,16 +389,22 @@ const deleteService = async (req, res) => {
         .join("/")
         .split(".")[0];
 
-      await cloudinary.uploader.destroy(publicId);
+      await cloudinary.uploader.destroy(
+        publicId
+      );
+
     } catch (err) {
-      console.log("Cloudinary image delete skipped.");
+      console.log(
+        "Cloudinary image delete skipped."
+      );
     }
 
     await service.deleteOne();
 
     res.status(200).json({
       success: true,
-      message: "Service deleted successfully",
+      message:
+        "Service deleted successfully",
     });
 
   } catch (error) {
@@ -265,11 +416,42 @@ const deleteService = async (req, res) => {
     });
   }
 };
+
+// ================= CATEGORY COUNTS =================
+
+const getCategoryCounts = async (req, res) => {
+  try {
+    const counts = await Service.aggregate([
+      {
+        $group: {
+          _id: "$category",
+          total: { $sum: 1 },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      counts,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
 module.exports = {
   createService,
   getAllServices,
   getMyProducts,
   getSingleService,
+  getRelatedProducts,
+  getCategoryCounts,
   updateService,
   deleteService,
 };

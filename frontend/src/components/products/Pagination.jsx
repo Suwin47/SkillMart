@@ -3,31 +3,60 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-function Pagination() {
-  return (
-    <div className="mt-16 flex items-center justify-center gap-3">
+function Pagination({
+  page,
+  totalPages,
+  setPage,
+}) {
+  if (totalPages <= 1) return null;
 
-      <button className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-300 bg-white transition hover:bg-slate-100">
+  return (
+    <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
+
+      {/* Previous */}
+
+      <button
+        onClick={() => setPage(page - 1)}
+        disabled={page === 1}
+        className={`flex h-11 w-11 items-center justify-center rounded-xl border transition ${
+          page === 1
+            ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+            : "border-slate-300 bg-white hover:bg-slate-100"
+        }`}
+      >
         <ChevronLeft size={18} />
       </button>
 
-      <button className="h-11 w-11 rounded-xl bg-indigo-600 font-semibold text-white">
-        1
-      </button>
+      {/* Page Numbers */}
 
-      <button className="h-11 w-11 rounded-xl border border-slate-300 bg-white transition hover:bg-slate-100">
-        2
-      </button>
+      {Array.from(
+        { length: totalPages },
+        (_, index) => index + 1
+      ).map((pageNumber) => (
+        <button
+          key={pageNumber}
+          onClick={() => setPage(pageNumber)}
+          className={`h-11 w-11 rounded-xl font-semibold transition ${
+            page === pageNumber
+              ? "bg-indigo-600 text-white"
+              : "border border-slate-300 bg-white hover:bg-slate-100"
+          }`}
+        >
+          {pageNumber}
+        </button>
+      ))}
 
-      <button className="h-11 w-11 rounded-xl border border-slate-300 bg-white transition hover:bg-slate-100">
-        3
-      </button>
+      {/* Next */}
 
-      <button className="h-11 w-11 rounded-xl border border-slate-300 bg-white transition hover:bg-slate-100">
-        4
-      </button>
-
-      <button className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-300 bg-white transition hover:bg-slate-100">
+      <button
+        onClick={() => setPage(page + 1)}
+        disabled={page === totalPages}
+        className={`flex h-11 w-11 items-center justify-center rounded-xl border transition ${
+          page === totalPages
+            ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+            : "border-slate-300 bg-white hover:bg-slate-100"
+        }`}
+      >
         <ChevronRight size={18} />
       </button>
 

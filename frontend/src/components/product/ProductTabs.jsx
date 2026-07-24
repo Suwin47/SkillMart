@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import api from "../../services/api";
 
 function ProductTabs({ product }) {
   const [activeTab, setActiveTab] = useState("description");
+
   const [reviews, setReviews] = useState([]);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+
+  const [purchased, setPurchased] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const tabs = [
     { id: "description", label: "Description" },
@@ -17,6 +22,7 @@ function ProductTabs({ product }) {
   useEffect(() => {
     if (product?._id) {
       fetchReviews();
+      checkPurchase();
     }
   }, [product]);
 
@@ -29,29 +35,58 @@ function ProductTabs({ product }) {
     }
   };
 
+  const checkPurchase = async () => {
+    try {
+      await api.get(`/download/${product._id}`);
+      setPurchased(true);
+    }
+      catch (err) {
+  if (err.response?.status !== 403) {
+    console.error(err);
+  }
+
+  setPurchased(false);
+}
+  };
+
   const submitReview = async () => {
+    if (!purchased) {
+      return toast.error(
+        "Purchase this product to submit a review."
+      );
+    }
+
+    if (!rating) {
+      return toast.error("Please select a rating.");
+    }
+
     if (!comment.trim()) {
-      alert("Please enter your review.");
-      return;
+      return toast.error("Please write your review.");
     }
 
     try {
+      setSubmitting(true);
+
       await api.post("/reviews", {
         serviceId: product._id,
         rating,
         comment,
       });
 
-      setComment("");
+      toast.success("Review submitted successfully.");
+
       setRating(5);
+      setComment("");
 
       fetchReviews();
 
-      alert("Review submitted successfully.");
     } catch (err) {
-      alert(
-        err.response?.data?.message || "Unable to submit review."
+      toast.error(
+        err.response?.data?.message ||
+          "Unable to submit review."
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -134,65 +169,101 @@ function ProductTabs({ product }) {
 
         )}
 
-                {activeTab === "reviews" && (
+        {activeTab === "reviews" && (
 
           <div>
 
-            <h2 className="text-2xl font-bold text-slate-900">
+            <h2 className="text-3xl font-bold">
               Customer Reviews
             </h2>
 
-            {/* Write Review */}
+            <div className="mt-2 text-slate-500">
+              {reviews.length} Reviews
+            </div>
 
-            <div className="mt-8 rounded-2xl border border-slate-200 p-6">
+            {/* Review Form */}
 
-              <h3 className="mb-5 text-xl font-semibold">
-                Write a Review
+            <div className="mt-8 rounded-2xl border bg-slate-50 p-8">
+
+              <h3 className="mb-5 text-xl font-bold">
+                Submit Review
               </h3>
 
-              <div className="mb-5 flex gap-2">
+              {!purchased && (
 
-                {[1, 2, 3, 4, 5].map((star) => (
+                <div className="mb-5 rounded-xl bg-yellow-50 p-4 text-sm text-yellow-700">
 
+                  Purchase this product to write a review.
+
+                </div>
+
+              )}
+
+              {/* Stars */}
+
+              <div className="mb-6 flex gap-2">
+
+                {[1,2,3,4,5].map((star)=>(
                   <button
                     key={star}
-                    type="button"
-                    onClick={() => setRating(star)}
-                    className="text-3xl"
+                    disabled={!purchased}
+                    onClick={()=>setRating(star)}
+                    className={`text-4xl transition ${
+                      purchased
+                        ? "hover:scale-110"
+                        : "cursor-not-allowed opacity-40"
+                    }`}
                   >
-                    {star <= rating ? "⭐" : "☆"}
+                    {star<=rating ? "⭐":"☆"}
                   </button>
-
                 ))}
 
               </div>
 
               <textarea
-                rows="4"
+                rows={5}
+                disabled={!purchased}
                 value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Share your experience..."
-                className="w-full rounded-xl border border-slate-300 p-4 outline-none focus:border-indigo-500"
+                onChange={(e)=>setComment(e.target.value)}
+                placeholder={
+                  purchased
+                    ? "Share your experience with this product..."
+                    : "Purchase required to review this product."
+                }
+                className="w-full rounded-xl border p-4 outline-none disabled:bg-slate-100"
               />
 
               <button
-                type="button"
                 onClick={submitReview}
-                className="mt-5 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white hover:bg-indigo-700"
+                disabled={!purchased || submitting}
+                className={`mt-6 w-full rounded-xl py-4 font-semibold transition ${
+                  purchased
+                    ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                    : "cursor-not-allowed bg-slate-300 text-slate-500"
+                }`}
               >
-                Submit Review
+                {submitting
+                  ? "Submitting..."
+                  : "Submit Review"}
               </button>
 
             </div>
 
-            {/* Review List */}
+            {/* Reviews */}
 
             <div className="mt-10 space-y-6">
+                            {reviews.length === 0 ? (
 
-              {reviews.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
 
-                <div className="rounded-xl border border-dashed p-10 text-center text-slate-500">
-                  No reviews yet.
+                  <h3 className="text-xl font-semibold text-slate-700">
+                    No Reviews Yet
+                  </h3>
+
+                  <p className="mt-3 text-slate-500">
+                    Be the first customer to review this product.
+                  </p>
+
                 </div>
 
               ) : (
@@ -201,28 +272,49 @@ function ProductTabs({ product }) {
 
                   <div
                     key={review._id}
-                    className="rounded-2xl border border-slate-200 p-6"
+                    className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
                   >
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between">
 
-                      <div>
+                      <div className="flex items-center gap-4">
 
-                        <h3 className="font-semibold">
-                          {review.buyer?.fullName}
-                        </h3>
+                        <img
+                          src={
+                            review.buyer?.profileImage ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              review.buyer?.fullName || "User"
+                            )}`
+                          }
+                          alt={review.buyer?.fullName}
+                          className="h-12 w-12 rounded-full object-cover"
+                        />
 
-                        <p className="mt-3 text-slate-600">
-                          {review.comment}
-                        </p>
+                        <div>
+
+                          <h3 className="font-semibold text-slate-900">
+                            {review.buyer?.fullName}
+                          </h3>
+
+                          <p className="mt-1 text-sm text-slate-500">
+                            {new Date(
+                              review.createdAt
+                            ).toLocaleDateString()}
+                          </p>
+
+                        </div>
 
                       </div>
 
-                      <div className="text-xl text-yellow-500">
+                      <div className="text-xl">
                         {"⭐".repeat(review.rating)}
                       </div>
 
                     </div>
+
+                    <p className="mt-5 leading-7 text-slate-600">
+                      {review.comment}
+                    </p>
 
                   </div>
 
@@ -246,7 +338,7 @@ function ProductTabs({ product }) {
 
             <div className="mt-8 space-y-6">
 
-              <div>
+              <div className="rounded-xl border p-5">
 
                 <h3 className="font-semibold">
                   Will I receive lifetime updates?
@@ -258,7 +350,7 @@ function ProductTabs({ product }) {
 
               </div>
 
-              <div>
+              <div className="rounded-xl border p-5">
 
                 <h3 className="font-semibold">
                   Can I use this in commercial projects?
@@ -270,7 +362,7 @@ function ProductTabs({ product }) {
 
               </div>
 
-              <div>
+              <div className="rounded-xl border p-5">
 
                 <h3 className="font-semibold">
                   Is support included?

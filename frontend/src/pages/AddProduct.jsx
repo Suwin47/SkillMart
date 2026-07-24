@@ -10,26 +10,26 @@ function AddProduct() {
 
   const [preview, setPreview] = useState("");
 
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    category: "UI Kit",
-    price: "",
-    downloadUrl: "",
-    thumbnail: null,
-  });
+ const [formData, setFormData] = useState({
+  title: "",
+  description: "",
+  category: "UI Kits",
+  price: "",
+  thumbnail: null,
+  productFile: null,
+});
 
   const categories = [
-    "UI Kit",
-    "React Component",
-    "Template",
-    "Source Code",
-    "E-book",
-    "Course",
-    "Icons",
-    "Design Asset",
-    "Other",
-  ];
+  "All",
+  "Web Templates",
+  "React Projects",
+  "UI Kits",
+  "Design Assets",
+  "AI Tools",
+  "Mobile Apps",
+  "Databases",
+  "E-Books",
+];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -53,6 +53,17 @@ function AddProduct() {
     setPreview(URL.createObjectURL(file));
   };
 
+  const handleProductFile = (e) => {
+  const file = e.target.files[0];
+
+  if (!file) return;
+
+  setFormData((prev) => ({
+    ...prev,
+    productFile: file,
+  }));
+};
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -65,8 +76,8 @@ function AddProduct() {
       data.append("description", formData.description);
       data.append("category", formData.category);
       data.append("price", formData.price);
-      data.append("downloadUrl", formData.downloadUrl);
       data.append("thumbnail", formData.thumbnail);
+      data.append("productFile", formData.productFile);
 
       const res = await api.post("/services", data);
 
@@ -169,20 +180,6 @@ function AddProduct() {
 
         </div>
 
-        <div>
-          <label className="mb-2 block font-medium">
-            Download URL
-          </label>
-
-          <input
-            type="text"
-            name="downloadUrl"
-            value={formData.downloadUrl}
-            onChange={handleChange}
-            className="w-full rounded-xl border p-3"
-            required
-          />
-        </div>
 
         <div>
 
@@ -190,14 +187,37 @@ function AddProduct() {
             Thumbnail
           </label>
 
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImage}
-            required
-          />
+         <input
+  type="file"
+  accept="image/*"
+  onChange={handleImage}
+  required
+  className="w-full rounded-xl border p-3"
+/>
 
         </div>
+
+        <div>
+
+  <label className="mb-2 block font-medium">
+    Product File
+  </label>
+
+  <input
+    type="file"
+    accept=".zip,.rar,.pdf,.fig,.apk,.sql,.docx,.pptx,.xlsx"
+    onChange={handleProductFile}
+    required
+    className="w-full rounded-xl border p-3"
+  />
+
+  {formData.productFile && (
+    <p className="mt-2 text-sm text-slate-500">
+      Selected File: <strong>{formData.productFile.name}</strong>
+    </p>
+  )}
+
+</div>
 
         {preview && (
 

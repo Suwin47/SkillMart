@@ -71,7 +71,7 @@ function ProductDetails() {
 
           <div className="mt-20">
 
-            <RelatedProducts />
+           <RelatedProducts product={product} />
 
           </div>
 

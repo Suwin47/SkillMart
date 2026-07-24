@@ -31,6 +31,78 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    // ==========================
+    // Seller Profile
+    // ==========================
+
+    storeName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    bio: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    website: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    twitter: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    linkedin: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // ==========================
+    // Payment Details
+    // ==========================
+
+    upiId: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    bankName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    accountNumber: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    ifscCode: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // ==========================
+    // Account
+    // ==========================
+
     role: {
       type: String,
       enum: ["buyer", "seller", "admin"],
@@ -51,6 +123,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["local", "google"],
       default: "local",
+    },
+
+    // ==========================
+    // Forgot Password OTP
+    // ==========================
+
+    resetOtp: {
+      type: String,
+      default: null,
+    },
+
+    resetOtpExpiry: {
+      type: Date,
+      default: null,
     },
   },
   {

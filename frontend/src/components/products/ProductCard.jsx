@@ -1,4 +1,7 @@
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
+import api from "../../services/api";
+
 import {
   Heart,
   Star,
@@ -7,18 +10,60 @@ import {
   BadgeCheck,
 } from "lucide-react";
 
-function ProductCard({ product }) {
+function ProductCard({
+  product,
+  wishlistIds = [],
+  setWishlistIds = () => {},
+}) {
+  const wishlisted = wishlistIds.includes(product._id);
+
+  const toggleWishlist = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      const { data } = await api.post("/wishlist", {
+        serviceId: product._id,
+      });
+
+      if (data.wishlisted) {
+        setWishlistIds((prev) =>
+          prev.includes(product._id)
+            ? prev
+            : [...prev, product._id]
+        );
+      } else {
+        setWishlistIds((prev) =>
+          prev.filter((id) => id !== product._id)
+        );
+      }
+
+      toast.success(data.message);
+
+    } catch (err) {
+      console.error(err);
+
+      toast.error(
+        err.response?.data?.message ||
+          "Unable to update wishlist."
+      );
+    }
+  };
+
   return (
     <div className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
 
-      {/* Image */}
-
       <Link to={`/product/${product._id}`}>
+
+        {/* Image */}
 
         <div className="relative overflow-hidden">
 
           <img
-            src={product.thumbnail}
+            src={
+              product.thumbnail ||
+              "https://via.placeholder.com/500x300?text=No+Image"
+            }
             alt={product.title}
             className="h-56 w-full object-cover transition duration-500 group-hover:scale-110"
           />
@@ -26,18 +71,25 @@ function ProductCard({ product }) {
           {/* Wishlist */}
 
           <button
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-md transition hover:bg-red-50 hover:text-red-500"
-            onClick={(e) => e.preventDefault()}
+            onClick={toggleWishlist}
+            className={`absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full shadow-lg transition-all
+
+            ${
+              wishlisted
+                ? "bg-red-500 text-white"
+                : "bg-white text-slate-700 hover:bg-red-50 hover:text-red-500"
+            }`}
           >
-            <Heart size={18} />
+            <Heart
+              size={20}
+              fill={wishlisted ? "currentColor" : "none"}
+            />
           </button>
 
           {/* Badge */}
 
           <span className="absolute left-4 top-4 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
-
             Best Seller
-
           </span>
 
         </div>
@@ -60,14 +112,14 @@ function ProductCard({ product }) {
               )}`
             }
             alt={product.seller?.fullName}
-            className="h-10 w-10 rounded-full object-cover"
+            className="h-11 w-11 rounded-full object-cover"
           />
 
           <div>
 
             <h4 className="flex items-center gap-1 font-semibold">
 
-              {product.seller?.fullName}
+              {product.seller?.fullName || "Unknown Seller"}
 
               <BadgeCheck
                 size={16}
@@ -77,9 +129,7 @@ function ProductCard({ product }) {
             </h4>
 
             <p className="text-sm text-slate-500">
-
               Verified Seller
-
             </p>
 
           </div>
@@ -90,7 +140,7 @@ function ProductCard({ product }) {
 
         <Link to={`/product/${product._id}`}>
 
-          <h3 className="mt-5 text-xl font-bold text-slate-900 transition group-hover:text-blue-600">
+          <h3 className="mt-5 line-clamp-2 text-xl font-bold text-slate-900 transition group-hover:text-blue-600">
 
             {product.title}
 
@@ -98,7 +148,7 @@ function ProductCard({ product }) {
 
         </Link>
 
-        {/* Rating & Downloads */}
+        {/* Rating */}
 
         <div className="mt-4 flex items-center justify-between">
 
@@ -109,7 +159,7 @@ function ProductCard({ product }) {
               fill="currentColor"
             />
 
-            {product.rating.toFixed(1)}
+            {Number(product.rating || 0).toFixed(1)}
 
           </span>
 
@@ -117,7 +167,7 @@ function ProductCard({ product }) {
 
             <Download size={16} />
 
-            {product.totalSales} Sales
+            {product.totalSales || 0} Sales
 
           </span>
 
@@ -142,9 +192,7 @@ function ProductCard({ product }) {
           <div>
 
             <p className="text-sm text-slate-400">
-
               Price
-
             </p>
 
             <h2 className="text-3xl font-bold text-indigo-600">

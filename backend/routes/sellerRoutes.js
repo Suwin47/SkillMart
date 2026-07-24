@@ -8,6 +8,32 @@ const {
   getSellerDashboard,
 } = require("../controllers/sellerController");
 
+const {
+  createSellerRequest,
+  getSellerRequest,
+} = require("../controllers/sellerRequestController");
+
+const {
+  getTopSellers,
+} = require("../controllers/userController");
+
+// Public
+router.get("/top-sellers", getTopSellers);
+
+// Buyer
+router.post(
+  "/request",
+  protect,
+  createSellerRequest
+);
+
+router.get(
+  "/request",
+  protect,
+  getSellerRequest
+);
+
+// Seller
 router.get(
   "/dashboard",
   protect,

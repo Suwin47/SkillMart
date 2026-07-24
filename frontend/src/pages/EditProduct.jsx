@@ -22,16 +22,16 @@ function EditProduct() {
     });
 
     const categories = [
-        "UI Kit",
-        "React Component",
-        "Template",
-        "Source Code",
-        "E-book",
-        "Course",
-        "Icons",
-        "Design Asset",
-        "Other",
-    ];
+  "All",
+  "Web Templates",
+  "React Projects",
+  "UI Kits",
+  "Design Assets",
+  "AI Tools",
+  "Mobile Apps",
+  "Databases",
+  "E-Books",
+];
 
     useEffect(() => {
         fetchProduct();

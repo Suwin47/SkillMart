@@ -9,6 +9,10 @@ const sellerRoutes = require("./routes/sellerRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const downloadRoutes = require("./routes/downloadRoutes");
+const invoiceRoutes = require("./routes/invoiceRoutes");
+const cartRoutes = require("./routes/cartRoutes"); // ✅ NEW
 
 const dns = require("dns");
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
@@ -34,6 +38,10 @@ app.use("/api/seller", sellerRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/download", downloadRoutes);
+app.use("/api/invoice", invoiceRoutes);
+app.use("/api/cart", cartRoutes); // ✅ NEW
 
 app.get("/", (req, res) => {
   res.status(200).json({

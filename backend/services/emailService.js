@@ -38,7 +38,41 @@ const sendOTPEmail = async (email, otp) => {
 
   await transporter.sendMail(mailOptions);
 };
+const sendResetOTPEmail = async (email, otp) => {
+  const mailOptions = {
+    from: `"SkillMart" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "SkillMart Password Reset OTP",
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;border:1px solid #ddd;border-radius:10px">
 
+        <h2 style="color:#2563eb">
+          Reset Your Password
+        </h2>
+
+        <p>We received a request to reset your SkillMart password.</p>
+
+        <p>Your OTP is:</p>
+
+        <h1 style="letter-spacing:6px;text-align:center;color:#dc2626;">
+          ${otp}
+        </h1>
+
+        <p>This OTP is valid for <strong>10 minutes</strong>.</p>
+
+        <p>If you didn't request this, you can safely ignore this email.</p>
+
+        <hr>
+
+        <small>SkillMart Security Team</small>
+
+      </div>
+    `,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
 module.exports = {
   sendOTPEmail,
+  sendResetOTPEmail,
 };

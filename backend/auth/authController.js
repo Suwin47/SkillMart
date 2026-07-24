@@ -3,7 +3,7 @@ const OTP = require("../models/OTP");
 const bcrypt = require("bcrypt");
 const generateOTP = require("../utils/generateOTP");
 const generateToken = require("../utils/generateTokens");
-const { sendOTPEmail } = require("../services/emailService");
+const { sendOTPEmail, sendResetOTPEmail } = require("../services/emailService");
 const firebase = require("../config/firebase");
 const cloudinary = require("../config/cloudinary");
 const fs = require("fs-extra");
@@ -11,7 +11,7 @@ const fs = require("fs-extra");
 
 const registerUser = async (req, res) => {
   try {
-    const { fullName, email, password } = req.body;
+    const { fullName, email, password, role } = req.body;
 
     // Check required fields
     if (!fullName || !email || !password) {
@@ -39,6 +39,7 @@ const registerUser = async (req, res) => {
       fullName,
       email,
       password: hashedPassword,
+      role,
     });
 
     await OTP.deleteMany({ email });
@@ -378,7 +379,295 @@ const uploadProfileImage = async (req, res) => {
     });
   }
 };
+//Update Profile 
+const updateProfile = async (req, res) => {
+  try {
+    const {
+  fullName,
+  phone,
+  bio,
+  upiId,
+  bankName,
+  accountNumber,
+  ifscCode,
+} = req.body;
 
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      { fullName, phone, bio, upiId, bankName, accountNumber, ifscCode },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully.",
+      user,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+//change password
+const changePassword = async (req, res) => {
+  try {
+
+    const {
+      currentPassword,
+      newPassword,
+    } = req.body;
+
+    const user = await User.findById(
+      req.user.userId
+    );
+
+    const isMatch = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is incorrect.",
+      });
+    }
+
+    user.password = await bcrypt.hash(
+      newPassword,
+      10
+    );
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password updated successfully.",
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+
+  }
+};
+// ==========================
+// Forgot Password
+// ==========================
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const otp = generateOTP();
+
+    user.resetOtp = otp;
+    user.resetOtpExpiry = new Date(
+      Date.now() + 10 * 60 * 1000
+    );
+
+    await user.save();
+
+    await sendResetOTPEmail(
+      user.email,
+      otp
+    );
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Password reset OTP sent successfully.",
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+
+  }
+};
+// ==========================
+// Verify Reset OTP
+// ==========================
+const verifyResetOTP = async (req, res) => {
+
+  try {
+
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required",
+      });
+    }
+
+    const user = await User.findOne({
+      email,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (
+      user.resetOtp !== otp
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    if (
+      user.resetOtpExpiry <
+      new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+
+  }
+
+};
+// ==========================
+// Reset Password
+// ==========================
+const resetPassword = async (req, res) => {
+
+  try {
+
+    const {
+      email,
+      otp,
+      password,
+    } = req.body;
+
+    if (
+      !email ||
+      !otp ||
+      !password
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Email, OTP and password are required",
+      });
+    }
+
+    const user = await User.findOne({
+      email,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (
+      user.resetOtp !== otp
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    if (
+      user.resetOtpExpiry <
+      new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired",
+      });
+    }
+
+    const hashedPassword =
+      await bcrypt.hash(
+        password,
+        10
+      );
+
+    user.password =
+      hashedPassword;
+
+    user.resetOtp = null;
+
+    user.resetOtpExpiry = null;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Password reset successfully.",
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+
+  }
+
+};
 // Logout User
 const logoutUser = (req, res) => {
   res.clearCookie("token", {
@@ -401,4 +690,9 @@ module.exports = {
   getProfile,
   googleLogin,
   uploadProfileImage,
+  forgotPassword,
+  verifyResetOTP,
+  resetPassword,
+  updateProfile,
+  changePassword,
 };

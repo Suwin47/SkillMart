@@ -10,8 +10,10 @@ const {
   getAllServices,
   getMyProducts,
   getSingleService,
+  getRelatedProducts,
   updateService,
   deleteService,
+  getCategoryCounts,
 } = require("../controllers/serviceController");
 
 /*
@@ -31,6 +33,14 @@ router.get(
   authorize("seller", "admin"),
   getMyProducts
 );
+router.get(
+  "/category-counts",
+  getCategoryCounts
+);
+router.get(
+  "/related/:id",
+  getRelatedProducts
+);
 
 // Get single product
 router.get("/:id", getSingleService);
@@ -41,25 +51,43 @@ router.get("/:id", getSingleService);
 |--------------------------------------------------------------------------
 */
 
-// Create product
+// Create Product
 router.post(
   "/",
   protect,
   authorize("seller", "admin"),
-  upload.single("thumbnail"),
+  upload.fields([
+    {
+      name: "thumbnail",
+      maxCount: 1,
+    },
+    {
+      name: "productFile",
+      maxCount: 1,
+    },
+  ]),
   createService
 );
 
-// Update product
+// Update Product
 router.put(
   "/:id",
   protect,
   authorize("seller", "admin"),
-  upload.single("thumbnail"),
+  upload.fields([
+    {
+      name: "thumbnail",
+      maxCount: 1,
+    },
+    {
+      name: "productFile",
+      maxCount: 1,
+    },
+  ]),
   updateService
 );
 
-// Delete product
+// Delete Product
 router.delete(
   "/:id",
   protect,
