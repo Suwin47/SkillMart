@@ -2,9 +2,13 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Create folders if they don't exist
+// ============================
+// Create Upload Folders
+// ============================
+
 const thumbnailDir = "uploads/thumbnails";
 const productDir = "uploads/products";
+const profileDir = "uploads/profile";
 
 if (!fs.existsSync(thumbnailDir)) {
   fs.mkdirSync(thumbnailDir, { recursive: true });
@@ -14,12 +18,25 @@ if (!fs.existsSync(productDir)) {
   fs.mkdirSync(productDir, { recursive: true });
 }
 
+if (!fs.existsSync(profileDir)) {
+  fs.mkdirSync(profileDir, { recursive: true });
+}
+
+// ============================
+// Storage
+// ============================
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     if (file.fieldname === "thumbnail") {
       cb(null, thumbnailDir);
+
+    } else if (file.fieldname === "profileImage") {
+      cb(null, profileDir);
+
     } else if (file.fieldname === "productFile") {
       cb(null, productDir);
+
     } else {
       cb(new Error("Invalid upload field"));
     }
@@ -36,12 +53,27 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (req, file, cb) => {
-  // Thumbnail
-  if (file.fieldname === "thumbnail") {
-    const allowedImages = [".jpg", ".jpeg", ".png", ".webp"];
+// ============================
+// File Filter
+// ============================
 
-    const ext = path.extname(file.originalname).toLowerCase();
+const fileFilter = (req, file, cb) => {
+
+  // Thumbnail & Profile Image
+  if (
+    file.fieldname === "thumbnail" ||
+    file.fieldname === "profileImage"
+  ) {
+    const allowedImages = [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".webp",
+    ];
+
+    const ext = path
+      .extname(file.originalname)
+      .toLowerCase();
 
     if (
       file.mimetype.startsWith("image/") &&
@@ -51,12 +83,15 @@ const fileFilter = (req, file, cb) => {
     }
 
     return cb(
-      new Error("Thumbnail must be JPG, JPEG, PNG or WEBP.")
+      new Error(
+        "Only JPG, JPEG, PNG and WEBP images are allowed."
+      )
     );
   }
 
   // Product File
   if (file.fieldname === "productFile") {
+
     const allowedFiles = [
       ".zip",
       ".rar",
@@ -69,7 +104,9 @@ const fileFilter = (req, file, cb) => {
       ".xlsx",
     ];
 
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = path
+      .extname(file.originalname)
+      .toLowerCase();
 
     if (allowedFiles.includes(ext)) {
       return cb(null, true);
@@ -85,11 +122,15 @@ const fileFilter = (req, file, cb) => {
   cb(new Error("Invalid upload field"));
 };
 
+// ============================
+// Multer
+// ============================
+
 const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 200 * 1024 * 1024, // 200 MB
+    fileSize: 200 * 1024 * 1024, // 200MB
   },
 });
 
